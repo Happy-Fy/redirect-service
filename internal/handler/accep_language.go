@@ -1,38 +1,27 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Happy-Fy/redirect-service/internal/config"
 )
 
-type AcceptLanguageHandler struct {
-}
+type AcceptLanguageHandler struct{}
 
 func (h *AcceptLanguageHandler) Name() string {
 	return config.TypeAcceptLanguage
 }
 
 func (h *AcceptLanguageHandler) Match(r *http.Request, rule config.Rule) bool {
-	acceptedLanguages := r.Header["Accept-Language"]
-	if acceptedLanguages == nil || len(acceptedLanguages) == 0 {
-		return false
-	}
-	acceptedLanguage := acceptedLanguages[0]
-
-	isAccepted, err := isLocaleAccepted(rule.Value, acceptedLanguage)
-	if err != nil {
+	acceptLanguage := r.Header.Get("Accept-Language")
+	if acceptLanguage == "" {
 		return false
 	}
 
-	if isAccepted {
-		return true
-	}
-
-	return false
+	return isLocaleAccepted(rule.Value, acceptLanguage)
 }
 
 type LanguageMatch struct {
@@ -41,7 +30,6 @@ type LanguageMatch struct {
 }
 
 func (lm LanguageMatch) Matches(locale string) bool {
-
 	lmLang := strings.ToLower(lm.Language)
 	locale = strings.ToLower(locale)
 
@@ -49,8 +37,9 @@ func (lm LanguageMatch) Matches(locale string) bool {
 		return true
 	}
 
-	if strings.Contains(lmLang, "-") {
-		baseLang := strings.Split(lmLang, "-")[0]
+	// Check base language (e.g., "en" matches "en-US")
+	if hyphenIndex := strings.Index(lmLang, "-"); hyphenIndex > 0 {
+		baseLang := lmLang[:hyphenIndex]
 		if baseLang == locale {
 			return true
 		}
@@ -59,24 +48,21 @@ func (lm LanguageMatch) Matches(locale string) bool {
 	return false
 }
 
-func isLocaleAccepted(locale string, acceptLanguage string) (bool, error) {
-	accepted, err := parseAcceptLanguage(acceptLanguage)
-	if err != nil {
-		return false, err
-	}
+func isLocaleAccepted(locale string, acceptLanguage string) bool {
+	accepted := parseAcceptLanguage(acceptLanguage)
 
 	for _, langMatch := range accepted {
 		if langMatch.Matches(locale) {
-			return true, nil
+			return true
 		}
 	}
 
-	return false, nil
+	return false
 }
 
-func parseAcceptLanguage(acceptLanguage string) ([]LanguageMatch, error) {
+func parseAcceptLanguage(acceptLanguage string) []LanguageMatch {
 	if acceptLanguage == "" {
-		return nil, nil
+		return nil
 	}
 
 	parts := strings.Split(acceptLanguage, ",")
@@ -86,25 +72,32 @@ func parseAcceptLanguage(acceptLanguage string) ([]LanguageMatch, error) {
 		part = strings.TrimSpace(part)
 		subParts := strings.Split(part, ";")
 
-		lang := subParts[0]
+		lang := strings.TrimSpace(subParts[0])
 		quality := 1.0 // Default quality value
 
 		if len(subParts) > 1 {
-			qPart := subParts[1]
-			if strings.HasPrefix(qPart, "q=") {
-				fmt.Sscanf(qPart, "q=%f", &quality)
+			for _, subPart := range subParts[1:] {
+				subPart = strings.TrimSpace(subPart)
+				if strings.HasPrefix(subPart, "q=") {
+					if q, err := strconv.ParseFloat(subPart[2:], 64); err == nil {
+						quality = q
+					}
+				}
 			}
 		}
 
-		matches = append(matches, LanguageMatch{
-			Language: lang,
-			Quality:  quality,
-		})
+		if lang != "" {
+			matches = append(matches, LanguageMatch{
+				Language: lang,
+				Quality:  quality,
+			})
+		}
 	}
 
+	// Sort by quality (highest first)
 	sort.Slice(matches, func(i, j int) bool {
 		return matches[i].Quality > matches[j].Quality
 	})
 
-	return matches, nil
+	return matches
 }

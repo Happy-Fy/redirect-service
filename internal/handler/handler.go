@@ -12,14 +12,14 @@ type Handler interface {
 }
 
 func RedirectHandlers() map[string]Handler {
-	h := &[]Handler{
+	handlers := []Handler{
 		&AcceptLanguageHandler{},
 		&FallbackHandler{},
 	}
 
-	m := make(map[string]Handler)
-	for _, handler := range *h {
-		m[handler.Name()] = handler
+	handlerMap := make(map[string]Handler, len(handlers))
+	for _, handler := range handlers {
+		handlerMap[handler.Name()] = handler
 	}
-	return m
+	return handlerMap
 }

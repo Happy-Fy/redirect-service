@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Happy-Fy/redirect-service/internal/config"
 	"github.com/Happy-Fy/redirect-service/internal/controller"
@@ -24,6 +25,16 @@ func main() {
 	}
 
 	rh := controller.NewRedirectHandler(cnf)
+
+	go func(rh *controller.RedirectController) {
+		for {
+			time.Sleep(1 * time.Minute)
+			cnf, err = config.Configs()
+			if err == nil {
+				rh.Config = cnf
+			}
+		}
+	}(rh)
 
 	http.HandleFunc("/", rh.Handle)
 	err = http.ListenAndServe(":8080", nil)

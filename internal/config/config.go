@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"sort"
 )
 
 type (
 	Config struct {
-		Rules []Rule `yaml:"rules"`
+		Rules    []Rule `yaml:"rules"`
+		Fallback Rule   `yaml:"fallback"`
 	}
 	Rule struct {
 		Prio   int    `yaml:"prio"`
@@ -46,15 +48,14 @@ func Configs() (*Config, error) {
 }
 
 func (cnf *Config) orderedRules() []Rule {
-	rules := cnf.Rules
-	// simple bubble sort
-	for i := 0; i < len(rules); i++ {
-		for j := 0; j < len(rules)-i-1; j++ {
-			if rules[j].Prio > rules[j+1].Prio {
-				rules[j], rules[j+1] = rules[j+1], rules[j]
-			}
-		}
-	}
+	rules := make([]Rule, len(cnf.Rules))
+	copy(rules, cnf.Rules)
+
+	// Use Go's built-in sort instead of bubble sort for O(n log n) performance
+	sort.Slice(rules, func(i, j int) bool {
+		return rules[i].Prio > rules[j].Prio
+	})
+
 	return rules
 }
 

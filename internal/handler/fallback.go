@@ -14,5 +14,6 @@ func (h *FallbackHandler) Name() string {
 }
 
 func (h *FallbackHandler) Match(r *http.Request, rule config.Rule) bool {
+	_ = rule
 	return true
 }

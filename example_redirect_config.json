@@ -1,15 +1,14 @@
 {
   "rules": [
     {
-      "prio": 100,
-      "type": "fallback",
-      "target": "https://www.example.com/{path}"
-    },
-    {
       "prio": 0,
       "type": "accept-language",
       "value": "de",
       "target": "https://de.example.com/{path}"
     }
-  ]
+  ],
+  "fallback": {
+    "type": "fallback",
+    "target": "https://www.example.com/{path}"
+  }
 }
